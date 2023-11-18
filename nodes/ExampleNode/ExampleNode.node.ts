@@ -6,9 +6,12 @@ import {
 	NodeOperationError,
 } from 'n8n-workflow';
 
-export class ExampleNode implements INodeType {
+import { Readability } from '@mozilla/readability';
+import { JSDOM } from 'jsdom';
+
+export class ReadabilityNode implements INodeType {
 	description: INodeTypeDescription = {
-		displayName: 'Example Node',
+		displayName: '',
 		name: 'exampleNode',
 		group: ['transform'],
 		version: 1,
@@ -40,17 +43,20 @@ export class ExampleNode implements INodeType {
 		const items = this.getInputData();
 
 		let item: INodeExecutionData;
-		let myString: string;
 
 		// Iterates over all input items and add the key "myString" with the
 		// value the parameter "myString" resolves to.
 		// (This could be a different value for each item in case it contains an expression)
 		for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
 			try {
-				myString = this.getNodeParameter('myString', itemIndex, '') as string;
 				item = items[itemIndex];
-
-				item.json['myString'] = myString;
+				const doc = new JSDOM(item);
+				const reader = new Readability(doc.window.document);
+				const article = reader.parse();
+				if (!article) {
+					throw new Error("Fail to parse")
+				}
+				item.json = article;
 			} catch (error) {
 				// This node should never fail but we want to showcase how
 				// to handle errors.
