@@ -18,7 +18,7 @@ const parseHtml = (html: string) => {
 export class HTMLExtractWithReadability implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Extract HTML with Readability',
-		name: 'exampleNode',
+		name: 'HTMLExtractWithReadability',
 		group: ['transform'],
 		version: 1,
 		description: 'Extract the content of a webpage with Readability',
