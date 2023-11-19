@@ -1,3 +1,4 @@
+/* eslint-disable n8n-nodes-base/node-execute-block-wrong-error-thrown */
 import {
 	IExecuteFunctions,
 	INodeExecutionData,
@@ -5,13 +6,18 @@ import {
 	INodeTypeDescription,
 	NodeOperationError,
 } from 'n8n-workflow';
-
-import { Readability } from '@mozilla/readability';
 import { JSDOM } from 'jsdom';
+import { Readability } from '@mozilla/readability';
 
-export class ReadabilityNode implements INodeType {
+const parseHtml = (html: string) => {
+	const doc = new JSDOM(html);
+	const reader = new Readability(doc.window.document);
+	const article = reader.parse();
+	return article;
+};
+export class ExampleNode implements INodeType {
 	description: INodeTypeDescription = {
-		displayName: '',
+		displayName: 'HTML Readability',
 		name: 'exampleNode',
 		group: ['transform'],
 		version: 1,
@@ -25,16 +31,15 @@ export class ReadabilityNode implements INodeType {
 			// Node properties which the user gets displayed and
 			// can change on the node.
 			{
-				displayName: 'My String',
-				name: 'myString',
+				displayName: 'Key',
+				name: 'key',
 				type: 'string',
-				default: '',
-				placeholder: 'Placeholder value',
-				description: 'The description text',
+				default: 'data',
+				placeholder: 'data',
+				description: 'Key to the html content',
 			},
 		],
 	};
-
 	// The function below is responsible for actually doing whatever this node
 	// is supposed to do. In this case, we're just appending the `myString` property
 	// with whatever the user has entered.
@@ -43,20 +48,19 @@ export class ReadabilityNode implements INodeType {
 		const items = this.getInputData();
 
 		let item: INodeExecutionData;
-
 		// Iterates over all input items and add the key "myString" with the
 		// value the parameter "myString" resolves to.
 		// (This could be a different value for each item in case it contains an expression)
 		for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
 			try {
+				const key = this.getNodeParameter('key', itemIndex, '') as string;
 				item = items[itemIndex];
-				const doc = new JSDOM(item);
-				const reader = new Readability(doc.window.document);
-				const article = reader.parse();
-				if (!article) {
-					throw new Error("Fail to parse")
+				if (!(key in item.json)) {
+					throw new Error(`The specified ${key} is not found on item ${itemIndex}`);
 				}
-				item.json = article;
+				const html = item.json[key] as string;
+				const parsed = parseHtml(html);
+				item.json = parsed || {};
 			} catch (error) {
 				// This node should never fail but we want to showcase how
 				// to handle errors.
