@@ -1,4 +1,3 @@
-/* eslint-disable n8n-nodes-base/node-execute-block-wrong-error-thrown */
 import {
 	IExecuteFunctions,
 	INodeExecutionData,
@@ -8,8 +7,6 @@ import {
 } from 'n8n-workflow';
 import { JSDOM } from 'jsdom';
 import { Readability } from '@mozilla/readability';
-import { browser } from './utils/browser';
-import fetch from 'node-fetch';
 
 const parseHtml = (html: string) => {
 	const doc = new JSDOM(html);
@@ -17,18 +14,6 @@ const parseHtml = (html: string) => {
 	const article = reader.parse();
 	return article;
 };
-
-async function getHtmlWithFetch(url: string) {
-	const response = await fetch(url);
-	const html = await response.text();
-	return html;
-}
-
-async function getHtmlWithPuppeteer(url: string) {
-	const page = await browser.CreatePage(url, { timeout: 10 * 1000 });
-	const html = await page.content();
-	return html;
-}
 
 export class HTMLExtractWithReadability implements INodeType {
 	description: INodeTypeDescription = {
@@ -46,12 +31,12 @@ export class HTMLExtractWithReadability implements INodeType {
 			// Node properties which the user gets displayed and
 			// can change on the node.
 			{
-				displayName: 'Key',
-				name: 'key',
+				displayName: 'HTML',
+				name: 'html',
 				type: 'string',
-				default: 'data',
-				placeholder: 'data',
-				description: 'Key to the html content',
+				default: '',
+				placeholder: "<body>Look at this cat: <img src='./cat.jpg'></body>",
+				description: 'HTML Content',
 			},
 		],
 	};
@@ -68,14 +53,8 @@ export class HTMLExtractWithReadability implements INodeType {
 		// (This could be a different value for each item in case it contains an expression)
 		for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
 			try {
-				const key = this.getNodeParameter('key', itemIndex, '') as string;
-				const usePuppeteer = this.getNodeParameter('usePuppeteer', itemIndex, '') as string;
 				item = items[itemIndex];
-				if (!(key in item.json)) {
-					throw new Error(`The specified ${key} is not found on item ${itemIndex}`);
-				}
-				const url = item.json[key] as string;
-				const html = usePuppeteer ? await getHtmlWithPuppeteer(url) : await getHtmlWithFetch(url);
+				const html = this.getNodeParameter('html', itemIndex, '') as string;
 				const parsed = parseHtml(html);
 				item.json = parsed || {};
 			} catch (error) {
