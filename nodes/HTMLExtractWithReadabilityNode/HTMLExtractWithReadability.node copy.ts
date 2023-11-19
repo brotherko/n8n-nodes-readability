@@ -8,6 +8,8 @@ import {
 } from 'n8n-workflow';
 import { JSDOM } from 'jsdom';
 import { Readability } from '@mozilla/readability';
+import { browser } from './utils/browser';
+import fetch from 'node-fetch';
 
 const parseHtml = (html: string) => {
 	const doc = new JSDOM(html);
@@ -15,15 +17,28 @@ const parseHtml = (html: string) => {
 	const article = reader.parse();
 	return article;
 };
-export class ExampleNode implements INodeType {
+
+async function getHtmlWithFetch(url: string) {
+	const response = await fetch(url);
+	const html = await response.text();
+	return html;
+}
+
+async function getHtmlWithPuppeteer(url: string) {
+	const page = await browser.CreatePage(url, { timeout: 10 * 1000 });
+	const html = await page.content();
+	return html;
+}
+
+export class HTMLExtractWithReadability implements INodeType {
 	description: INodeTypeDescription = {
-		displayName: 'HTML Readability',
+		displayName: 'Extract HTML with Readability',
 		name: 'exampleNode',
 		group: ['transform'],
 		version: 1,
-		description: 'Basic Example Node',
+		description: 'Extract the content of a webpage with Readability',
 		defaults: {
-			name: 'Example Node',
+			name: 'Extract HTML with Readability',
 		},
 		inputs: ['main'],
 		outputs: ['main'],
@@ -54,11 +69,13 @@ export class ExampleNode implements INodeType {
 		for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
 			try {
 				const key = this.getNodeParameter('key', itemIndex, '') as string;
+				const usePuppeteer = this.getNodeParameter('usePuppeteer', itemIndex, '') as string;
 				item = items[itemIndex];
 				if (!(key in item.json)) {
 					throw new Error(`The specified ${key} is not found on item ${itemIndex}`);
 				}
-				const html = item.json[key] as string;
+				const url = item.json[key] as string;
+				const html = usePuppeteer ? await getHtmlWithPuppeteer(url) : await getHtmlWithFetch(url);
 				const parsed = parseHtml(html);
 				item.json = parsed || {};
 			} catch (error) {
